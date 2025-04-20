@@ -4,8 +4,8 @@ file(GLOB_RECURSE NESTED_SRC
 
 idf_component_register(
     SRCS ${NESTED_SRC}
-    INCLUDE_DIRS "." "sockets"
-    REQUIRES esp_wifi heap json qrcode bootloader_support kd_common esp_http_client wifi_provisioning
+    INCLUDE_DIRS "." "sockets" "led"
+    REQUIRES esp_wifi heap json qrcode bootloader_support kd_common esp_http_client wifi_provisioning esp_driver_rmt
 )
 
 idf_build_set_property(COMPILE_OPTIONS "-Wno-missing-field-initializers" APPEND)

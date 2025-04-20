@@ -9,6 +9,7 @@
 
 #include "kd_common.h"
 #include "sockets.h"
+#include "led.h"
 
 extern "C" void app_main(void)
 {
@@ -18,7 +19,6 @@ extern "C" void app_main(void)
     kd_common_set_provisioning_pop_token_format(ProvisioningPOPTokenFormat_t::NUMERIC_6);
     kd_common_init();
 
+    led_init();
     sockets_init();
-
-    vTaskSuspend(NULL);
 }
