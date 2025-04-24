@@ -1,3 +1,6 @@
 [submodule "components/kd_common"]
 	path = components/kd_common
 	url = https://github.com/koiosdigital/kd_common
+[submodule "components/LANTERN-protobufs"]
+	path = components/LANTERN-protobufs
+	url = https://github.com/koiosdigital/LANTERN-protobufs

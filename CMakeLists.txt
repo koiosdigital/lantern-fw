@@ -15,5 +15,4 @@ ENDIF()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-set(COMPONENTS esptool_py main)
 project(LANTERN-fw)

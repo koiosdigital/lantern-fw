@@ -11,7 +11,9 @@
 
 #include "cJSON.h"
 #include <esp_partition.h>
+#include "lantern.pb-c.h"
 #include <mbedtls/base64.h>
+#include "led.h"
 
 static const char* TAG = "sockets";
 TaskHandle_t xSocketsTask = NULL;
@@ -70,6 +72,35 @@ static void websocket_event_handler(void* handler_args, esp_event_base_t base, i
     }
 }
 
+void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    if (event_base == WIFI_EVENT) {
+        sockets_disconnect();
+        led_set_effect(LED_SOLID);
+        led_set_color(0, 255, 0);
+        led_set_brightness(255);
+    }
+    if (event_base == IP_EVENT) {
+        sockets_connect();
+        led_set_effect(LED_OFF);
+    }
+}
+
+void handle_message(Lantern__SocketMessage* message)
+{
+    switch (message->message_case) {
+    case LANTERN__SOCKET_MESSAGE__MESSAGE_SET_COLOR:
+        ESP_LOGI(TAG, "set color: %" PRIu32 " %" PRIu32 " %" PRIu32, message->set_color->red, message->set_color->green, message->set_color->blue);
+        break;
+    case LANTERN__SOCKET_MESSAGE__MESSAGE_TOUCH_EVENT_RESPONSE:
+        ESP_LOGI(TAG, "touch event response: %i", message->touch_event_response->success);
+        break;
+    default:
+        break;
+    }
+
+    lantern__socket_message__free_unpacked(message, NULL);
+}
+
 void sockets_task(void* pvParameter)
 {
     while (1) {
@@ -117,25 +148,15 @@ void sockets_task(void* pvParameter)
                 continue;
             }
 
-            /*
-            Matrx__SocketMessage* socket_message = matrx__socket_message__unpack(NULL, message.message_len, (uint8_t*)message.message);
+            Lantern__SocketMessage* socket_message = lantern__socket_message__unpack(NULL, message.message_len, (uint8_t*)message.message);
             if (socket_message == NULL) {
                 ESP_LOGE(TAG, "failed to unpack socket message");
                 free(message.message);
                 continue;
             }
-            handle_message(socket_message);
-            */
-        }
-    }
-}
 
-void event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
-    if (event_base == WIFI_EVENT) {
-        sockets_disconnect();
-    }
-    if (event_base == IP_EVENT) {
-        sockets_connect();
+            handle_message(socket_message);
+        }
     }
 }
 
@@ -164,18 +185,44 @@ void sockets_disconnect()
     esp_websocket_client_close(client, pdMS_TO_TICKS(1000));
 }
 
+void send_socket_message(Lantern__SocketMessage* message)
+{
+    size_t len = lantern__socket_message__get_packed_size(message);
+    uint8_t* buffer = (uint8_t*)heap_caps_calloc(len, sizeof(uint8_t), MALLOC_CAP_SPIRAM);
+    if (buffer == NULL) {
+        ESP_LOGE(TAG, "failed to allocate message buffer");
+        return;
+    }
+
+    lantern__socket_message__pack(message, buffer);
+    ProcessableMessage_t p_message;
+    p_message.message = (char*)buffer;
+    p_message.message_len = len;
+    p_message.is_outbox = true;
+
+    if (xQueueSend(xSocketsQueue, &p_message, pdMS_TO_TICKS(50)) != pdTRUE) {
+        ESP_LOGE(TAG, "failed to send message to queue");
+    }
+}
+
+void notify_touch() {
+    Lantern__TouchEvent event = LANTERN__TOUCH_EVENT__INIT;
+    Lantern__SocketMessage message = LANTERN__SOCKET_MESSAGE__INIT;
+    message.message_case = LANTERN__SOCKET_MESSAGE__MESSAGE_TOUCH_EVENT;
+    message.touch_event = &event;
+
+    send_socket_message(&message);
+}
+
 void upload_coredump(uint8_t* core_dump, size_t core_dump_len) {
-    /*
-    Matrx__UploadCoreDump upload = MATRX__UPLOAD_CORE_DUMP__INIT;
+    Lantern__UploadCoreDump upload = LANTERN__UPLOAD_CORE_DUMP__INIT;
     upload.core_dump.data = core_dump;
     upload.core_dump.len = core_dump_len;
-
-    Matrx__SocketMessage message = MATRX__SOCKET_MESSAGE__INIT;
-    message.message_case = MATRX__SOCKET_MESSAGE__MESSAGE_UPLOAD_CORE_DUMP;
+    Lantern__SocketMessage message = LANTERN__SOCKET_MESSAGE__INIT;
+    message.message_case = LANTERN__SOCKET_MESSAGE__MESSAGE_UPLOAD_CORE_DUMP;
     message.upload_core_dump = &upload;
 
     send_socket_message(&message);
-    */
 }
 
 void attempt_coredump_upload() {
