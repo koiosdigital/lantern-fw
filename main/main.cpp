@@ -22,21 +22,15 @@ static void tp_example_read_task(void* pvParameter)
         touch_pad_read_raw_data((touch_pad_t)TOUCH_PIN, &touch_value);    // read raw data.
 
         if (touch_value > 100000 && !is_touched) {
-            ESP_LOGI("TOUCH", "TOUCH PIN");
             is_touched = true;
-            led_set_effect(LED_CYCLIC);
-            led_set_color(0, 255, 0);
             notify_touch();
         }
 
         if (touch_value < 100000 && is_touched) {
-            ESP_LOGI("TOUCH", "RELEASE PIN");
-            led_set_effect(LED_OFF);
-            led_set_color(0, 0, 0);
             is_touched = false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 

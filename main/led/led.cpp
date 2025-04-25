@@ -13,7 +13,7 @@
 #include "kd_common.h"
 #include "pinout.h"
 
-#define FPS 20
+#define FPS 10
 static const char* TAG = "led";
 
 LEDEffect_t current_effect = LED_OFF;
@@ -302,7 +302,7 @@ void led_init(void)
     esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_START, &provisioning_event_handler2, NULL);
     esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &provisioning_event_handler2, NULL);
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(150));
 
     led_set_effect(LED_SOLID);
     led_set_color(255, 255, 255);

@@ -104,11 +104,18 @@ void handle_message(Lantern__SocketMessage* message)
 void sockets_task(void* pvParameter)
 {
     while (1) {
-        if (kd_common_crypto_get_state() != CryptoState_t::CRYPTO_STATE_VALID_CERT) {
+        if (kd_common_crypto_get_state() != CryptoState_t::CRYPTO_STATE_VALID_CERT && kd_common_crypto_get_state() != CryptoState_t::CRYPTO_STATE_BAD_DS_PARAMS) {
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
         break;
+    }
+
+    if (kd_common_crypto_get_state() == CryptoState_t::CRYPTO_STATE_BAD_DS_PARAMS) {
+        ESP_LOGE(TAG, "Bad DS params");
+        led_set_effect(LED_BLINK);
+        led_set_color(255, 0, 0);
+        vTaskDelete(NULL);
     }
 
     esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &event_handler, NULL);
