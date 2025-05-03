@@ -1,32 +1,30 @@
 #!/bin/bash
+BINARIES="0x0 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 build/ota_data_initial.bin 0x20000 build/LANTERN-fw.bin"
 
-input_file="./build/flasher_args.json"
-dest_dir="./output"
+zip_name="factory.zip"
+json_file="flash_files.json"
 
-# Create destination directory if needed
-mkdir -p "$dest_dir"
+# Start JSON array
+echo "[" > "$json_file"
 
-# Temporary file for JSON entries
-temp_json=$(mktemp)
-
-# Process flash files with offsets
-jq -r --arg dest "$dest_dir" '.flash_files | to_entries[] | "\(.key)\t\(.value)"' "$input_file" | while IFS=$'\t' read -r offset filepath; do
-    if [ -f "./build/$filepath" ]; then
-        filename=$(basename "$filepath")
-        new_path="$filename"
-        cp "./build/$filepath" "./output/$new_path"
-        # Append JSON object with offset and new path
-        jq -n --arg offset "$offset" --arg file "$new_path" '{offset: $offset, file: $file}' >> "$temp_json"
+# Process pairs and build JSON
+first=1
+while read -r offset file; do
+    base_file=$(basename "$file")
+    zip -j "$zip_name" "$file"  # add file to zip, stripping folders
+    if [ $first -eq 1 ]; then
+        first=0
     else
-        echo "Warning: File not found - $filepath" >&2
+        echo "," >> "$json_file"
     fi
-done
+    printf "  {\"offset\": \"%s\", \"file\": \"%s\"}" "$offset" "$base_file" >> "$json_file"
+done < <(echo "$BINARIES" | xargs -n 2)
 
-# Create final JSON array
-jq -s '.' "$temp_json" > $dest_dir/flash_files.json
-rm "$temp_json"
+# Close JSON array
+echo -e "\n]" >> "$json_file"
 
-#zip output
-zip -j -r "$dest_dir/factory.zip" "$dest_dir"
+# Add JSON to zip
+zip -j "$zip_name" "$json_file"
 
-echo "Operation completed. Offsets preserved in flash_files.json"
+# Optionally, remove the standalone JSON file
+rm "$json_file"

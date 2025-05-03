@@ -72,7 +72,7 @@ jobs:
             export BUILD_VARIANT=${{ matrix.config }}
 
             apt update -y
-            apt install -y protobuf-compiler protobuf-c-compiler jq
+            apt install -y protobuf-compiler protobuf-c-compiler
 
             #build
             idf.py build | tee build.log
@@ -83,40 +83,57 @@ jobs:
             BINARY_INFO=$(grep -oP "^\S+\.bin binary size \S+ bytes" build.log | tail -n 1)
             BINARY_FILE=$(echo "$BINARY_INFO" | sed -n "s/^\(\S\+\.bin\).*/\1/p")
 
+            # Extract flash_mode, flash_size, flash_freq, and binaries
+            FLASH_MODE=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_mode \([^ ]\+\) .*/\1/p")
+            FLASH_SIZE=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_size \([^ ]\+\) .*/\1/p")
+            FLASH_FREQ=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_freq \([^ ]\+\) .*/\1/p")
+            BINARIES=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_freq [^ ]\+ //p")
+
             #move artifacts
             mv build/$BINARY_FILE /output/app.bin
 
-            #process args
-            input_file="build/flasher_args.json"
-            dest_dir="/output"
+            zip_name="factory.zip"
+            json_file="flash_files.json"
 
-            # Temporary file for JSON entries
-            temp_json=$(mktemp)
+            # Start JSON array
+            echo "[" > "$json_file"
 
-            # Process flash files with offsets
-            jq -r --arg dest "$dest_dir" ".flash_files | to_entries[] | \"\(.key)\t\(.value)\"" "$input_file" | while IFS=$"\t" read -r offset filepath; do
-                if [ -f "build/$filepath" ]; then
-                    filename=$(basename "$filepath")
-                    new_path="$filename"
-                    cp "build/$filepath" "./output/$new_path"
-                    # Append JSON object with offset and new path
-                    jq -n --arg offset "$offset" --arg file "$new_path" "{offset: $offset, file: $file}" >> "$temp_json"
+            # Process pairs and build JSON
+            first=1
+            while read -r offset file; do
+                base_file=$(basename "$file")
+                zip -j "$zip_name" "$file"  # add file to zip, stripping folders
+                if [ $first -eq 1 ]; then
+                    first=0
                 else
-                    echo "Warning: File not found - $filepath" >&2
+                    echo "," >> "$json_file"
                 fi
-            done
+                printf "  {\"offset\": \"%s\", \"file\": \"%s\"}" "$offset" "$base_file" >> "$json_file"
+            done < <(echo "$BINARIES" | xargs -n 2)
 
-            # Create final JSON array
-            jq -s "." "$temp_json" > $dest_dir/flash_files.json
-            rm "$temp_json"
+            # Close JSON array
+            echo -e "\n]" >> "$json_file"
 
-            #zip output
-            zip -j -r "$dest_dir/factory.zip" "$dest_dir"
+            # Add JSON to zip
+            zip -j "$zip_name" "$json_file"
+
+            # Optionally, remove the standalone JSON file
+            rm "$json_file"
+
+            # Move the zip file to the output directory
+            mv "$zip_name" /output/
+
       - name: Upload factory zip
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.config }}_factory.zip
           path: output/factory.zip
+
+      - name: Upload merged hex
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.config }}_merged.hex
+          path: output/merged.hex
 
       - name: Upload OTA binary
         uses: actions/upload-artifact@v4
