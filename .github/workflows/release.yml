@@ -90,7 +90,7 @@ jobs:
             BINARIES=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_freq [^ ]\+ //p")
 
             #move artifacts
-            mv build/$BINARY_FILE /output/app.bin
+            cp build/$BINARY_FILE /output/app.bin
 
             zip_name="factory.zip"
             json_file="flash_files.json"
