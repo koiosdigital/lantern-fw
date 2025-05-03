@@ -72,7 +72,7 @@ jobs:
             export BUILD_VARIANT=${{ matrix.config }}
 
             apt update -y
-            apt install -y protobuf-compiler protobuf-c-compiler
+            apt install -y protobuf-compiler protobuf-c-compiler jq
 
             #build
             idf.py build | tee build.log
@@ -87,7 +87,7 @@ jobs:
             mv build/$BINARY_FILE /output/app.bin
 
             #process args
-            input_file="./build/flasher_args.json"
+            input_file="/build/flasher_args.json"
             dest_dir="/output"
 
             # Temporary file for JSON entries
