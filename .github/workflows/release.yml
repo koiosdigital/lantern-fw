@@ -87,7 +87,7 @@ jobs:
             mv build/$BINARY_FILE /output/app.bin
 
             #process args
-            input_file="/build/flasher_args.json"
+            input_file="build/flasher_args.json"
             dest_dir="/output"
 
             # Temporary file for JSON entries
@@ -95,10 +95,10 @@ jobs:
 
             # Process flash files with offsets
             jq -r --arg dest "$dest_dir" ".flash_files | to_entries[] | \"\(.key)\t\(.value)\"" "$input_file" | while IFS=$"\t" read -r offset filepath; do
-                if [ -f "./build/$filepath" ]; then
+                if [ -f "build/$filepath" ]; then
                     filename=$(basename "$filepath")
                     new_path="$filename"
-                    cp "./build/$filepath" "./output/$new_path"
+                    cp "build/$filepath" "./output/$new_path"
                     # Append JSON object with offset and new path
                     jq -n --arg offset "$offset" --arg file "$new_path" "{offset: $offset, file: $file}" >> "$temp_json"
                 else
