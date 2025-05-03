@@ -83,32 +83,40 @@ jobs:
             BINARY_INFO=$(grep -oP "^\S+\.bin binary size \S+ bytes" build.log | tail -n 1)
             BINARY_FILE=$(echo "$BINARY_INFO" | sed -n "s/^\(\S\+\.bin\).*/\1/p")
 
-            # Extract flash_mode, flash_size, flash_freq, and binaries
-            FLASH_MODE=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_mode \([^ ]\+\) .*/\1/p")
-            FLASH_SIZE=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_size \([^ ]\+\) .*/\1/p")
-            FLASH_FREQ=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_freq \([^ ]\+\) .*/\1/p")
-            BINARIES=$(echo "$FLASH_LINE" | sed -n "s/.*--flash_freq [^ ]\+ //p")
-
-            #merge artifacts
-            esptool.py --chip ${{ env.IDF_TARGET }} merge_bin -o factory_flash.bin --flash_mode $FLASH_MODE --flash_size $FLASH_SIZE --flash_freq $FLASH_FREQ $BINARIES
-            esptool.py --chip ${{ env.IDF_TARGET }} merge_bin -o factory_flash.hex --format hex --flash_mode $FLASH_MODE --flash_size $FLASH_SIZE --flash_freq $FLASH_FREQ $BINARIES
-
             #move artifacts
-            mv factory_flash.bin /output/merged.bin
-            mv factory_flash.hex /output/merged.hex
             mv build/$BINARY_FILE /output/app.bin
 
-      - name: Upload merged binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.config }}_merged.bin
-          path: output/merged.bin
+            #process args
+            input_file="./build/flasher_args.json"
+            dest_dir="/output"
 
-      - name: Upload merged hex
+            # Temporary file for JSON entries
+            temp_json=$(mktemp)
+
+            # Process flash files with offsets
+            jq -r --arg dest "$dest_dir" ".flash_files | to_entries[] | \"\(.key)\t\(.value)\"" "$input_file" | while IFS=$"\t" read -r offset filepath; do
+                if [ -f "./build/$filepath" ]; then
+                    filename=$(basename "$filepath")
+                    new_path="$filename"
+                    cp "./build/$filepath" "./output/$new_path"
+                    # Append JSON object with offset and new path
+                    jq -n --arg offset "$offset" --arg file "$new_path" "{offset: $offset, file: $file}" >> "$temp_json"
+                else
+                    echo "Warning: File not found - $filepath" >&2
+                fi
+            done
+
+            # Create final JSON array
+            jq -s "." "$temp_json" > $dest_dir/flash_files.json
+            rm "$temp_json"
+
+            #zip output
+            zip -j -r "$dest_dir/factory.zip" "$dest_dir"
+      - name: Upload factory zip
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.config }}_merged.hex
-          path: output/merged.hex
+          name: ${{ matrix.config }}_factory.zip
+          path: output/factory.zip
 
       - name: Upload OTA binary
         uses: actions/upload-artifact@v4
