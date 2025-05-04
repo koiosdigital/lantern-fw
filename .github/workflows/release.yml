@@ -129,12 +129,6 @@ jobs:
           name: ${{ matrix.config }}_factory.zip
           path: output/factory.zip
 
-      - name: Upload merged hex
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.config }}_merged.hex
-          path: output/merged.hex
-
       - name: Upload OTA binary
         uses: actions/upload-artifact@v4
         with:
