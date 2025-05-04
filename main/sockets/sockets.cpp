@@ -158,6 +158,7 @@ void handle_lantern_message(Kd__KDLanternMessage* message)
     switch (message->message_case) {
     case KD__KDLANTERN_MESSAGE__MESSAGE_SET_COLOR:
         led_set_color(message->set_color->red, message->set_color->green, message->set_color->blue);
+        led_set_speed(message->set_color->effect_speed);
         led_set_effect((LEDEffect_t)message->set_color->effect);
         led_set_brightness(message->set_color->effect_brightness);
         break;

@@ -13,6 +13,7 @@ typedef enum LEDEffect_t {
 
 void led_set_effect(LEDEffect_t effect);
 void led_set_color(uint8_t r, uint8_t g, uint8_t b);
+void led_set_speed(uint8_t speed);
 void led_set_brightness(uint8_t brightness);
 void led_fade_out();
 void led_fade_in();

@@ -13,10 +13,10 @@
 #include "kd_common.h"
 #include "pinout.h"
 
-#define FPS 10
 static const char* TAG = "led";
 
 LEDEffect_t current_effect = LED_OFF;
+static uint8_t led_speed = 10;
 static uint8_t led_brightness = 255;
 static uint8_t led_color[3] = { 0, 0, 0 };
 static bool fading_out = false;
@@ -34,6 +34,10 @@ void led_set_color(uint8_t r, uint8_t g, uint8_t b) {
     led_color[0] = r;
     led_color[1] = g;
     led_color[2] = b;
+}
+
+void led_set_speed(uint8_t speed) {
+    led_speed = speed;
 }
 
 void led_set_brightness(uint8_t brightness) {
@@ -88,7 +92,8 @@ void tx_buf_set_color_at(int index, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void led_blink() {
-    if (xTaskGetTickCount() - blink_changed_at > pdMS_TO_TICKS(500)) {
+    uint32_t changeInterval = 1000 / led_speed;
+    if (xTaskGetTickCount() - blink_changed_at > pdMS_TO_TICKS(changeInterval)) {
         blink_state = !blink_state;
         if (blink_state) {
             tx_buf_fill_color(led_color[0], led_color[1], led_color[2]);
@@ -128,7 +133,8 @@ void led_cyclic() {
     static uint32_t last_update = 0;
     static int trail_size = 5;
 
-    if (xTaskGetTickCount() - last_update > pdMS_TO_TICKS(100)) {
+    uint32_t changeInterval = 1000 / led_speed;
+    if (xTaskGetTickCount() - last_update > pdMS_TO_TICKS(changeInterval)) {
         offset = (offset + 1) % LED_COUNT;
         for (int i = 0; i < LED_COUNT; i++) {
             if (i < trail_size) {
@@ -195,7 +201,7 @@ void led_task(void* pvParameter) {
 
         rmt_transmit(led_chan, led_encoder, led_buffer, sizeof(led_buffer), &tx_config);
         rmt_tx_wait_all_done(led_chan, portMAX_DELAY);
-        vTaskDelay(pdMS_TO_TICKS(1000 / FPS));
+        vTaskDelay(pdMS_TO_TICKS(1000 / 30)); // 30 FPS
     }
 }
 
@@ -209,7 +215,7 @@ void prov_led_task(void* pvParameter) {
             led_set_effect(LED_OFF);
             led_set_color(0, 0, 0);
             led_set_brightness(0);
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(3000));
         }
         switch (popToken[currentChar]) {
         case '1':
@@ -235,9 +241,9 @@ void prov_led_task(void* pvParameter) {
         }
         led_set_effect(LED_SOLID);
         led_set_brightness(255);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1500));
         led_set_effect(LED_OFF);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(750));
 
         currentChar++;
     }
