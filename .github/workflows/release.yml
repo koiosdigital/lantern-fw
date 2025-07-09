@@ -55,11 +55,6 @@ jobs:
           echo "BUILD_VARIANT=${{ matrix.config }}" >> $GITHUB_ENV
           mkdir output
 
-      - name: Cache Docker images.
-        uses: AndreKurait/docker-cache@0.6.0
-        with:
-          key: docker-${{ runner.os }}-v5.4.1
-
       - name: idf build
         uses: espressif/esp-idf-ci-action@v1
         with:
@@ -70,9 +65,6 @@ jobs:
             # Set up the environment
             export BUILD_VERSION=${{ env.BUILD_VERSION }}
             export BUILD_VARIANT=${{ matrix.config }}
-
-            apt update -y
-            apt install -y protobuf-compiler protobuf-c-compiler
 
             #build
             idf.py build | tee build.log
