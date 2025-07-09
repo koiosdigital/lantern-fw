@@ -57,6 +57,9 @@ jobs:
           command: |
             export BUILD_VARIANT=${{ matrix.config }}
 
+            apt update -y
+            apt install -y protobuf-compiler protobuf-c-compiler
+
             #build
             idf.py build | tee build.log
 
